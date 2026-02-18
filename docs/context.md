@@ -1,6 +1,6 @@
 ﻿# MapLeads - Product Context
 
-> **Version:** 1.1.2
+> **Version:** 1.1.3
 > **Last updated:** 2026-02-18
 > **Status:** MVP
 
@@ -50,8 +50,8 @@ Core flow:
 
 - `/` Landing page
 - `/auth` Authentication
-- `/dashboard` Searches and leads workspace
-- `/superadmin` Restricted user-management panel
+- `/dashboard` Searches and leads workspace (non-superadmin users)
+- `/superadmin` Restricted user-management panel (superadmin only)
 
 ---
 
@@ -83,6 +83,7 @@ Plan limits:
 ### Superadmin
 - Allowlist by email: `afiliadosprobusiness@gmail.com` (or runtime override via `SUPERADMIN_EMAIL`).
 - Capabilities: list users, change plan, suspend/restore, delete user and related data.
+- On login, superadmin is redirected to `/superadmin` and blocked from `/dashboard`.
 
 ### Suspension
 - `profiles.is_suspended` and `profiles.suspended_at` define account state.
@@ -104,7 +105,8 @@ Plan limits:
 ### Authentication Flow
 1. User signs in with Email/Password or Google from `/auth`.
 2. Frontend ensures `profiles/{uid}` and `subscriptions/{uid}` exist with starter defaults for new users.
-3. Existing users keep current plan/quota state; missing identity fields are backfilled when needed.
+3. Superadmin email is redirected to `/superadmin`; other users go to `/dashboard`.
+4. Existing users keep current plan/quota state; missing identity fields are backfilled when needed.
 
 ### Lead Search Flow
 1. User creates `searches` document with `queued` state.
@@ -118,6 +120,7 @@ Plan limits:
 1. Authorized user enters `/superadmin`.
 2. Frontend calls `superadminUsers` with `list_users`.
 3. Superadmin can execute plan updates, suspend/restore, or hard delete.
+4. Superadmin cannot run scraping jobs (`runApifySearch` denies superadmin requester).
 
 ---
 

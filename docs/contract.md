@@ -1,6 +1,6 @@
 ﻿# MapLeads - API and Data Contract
 
-> **Version:** 1.1.0
+> **Version:** 1.1.1
 > **Status:** MVP - Source of mechanical truth
 > **Last updated:** 2026-02-18
 
@@ -47,7 +47,7 @@ Triggers one scraping job for an existing search.
 | `invalid-argument` | Missing/invalid `search_id` |
 | `unauthenticated` | Missing auth context |
 | `not-found` | Search does not exist or does not belong to caller |
-| `permission-denied` | Suspended account |
+| `permission-denied` | Suspended account or superadmin requester |
 | `resource-exhausted` | Leads quota exceeded |
 | `internal` | Apify/Firestore/unexpected error |
 
@@ -263,3 +263,7 @@ Filename:
   - Cambio: Added callable `superadminUsers` and suspended-account guard in `runApifySearch`.
   - Tipo: non-breaking (within Firebase contract)
   - Impacto: Enables secure superadmin operations and account suspension enforcement.
+- 2026-02-18
+  - Cambio: `runApifySearch` now blocks superadmin requester accounts.
+  - Tipo: non-breaking
+  - Impacto: Superadmin role is restricted to user management operations.

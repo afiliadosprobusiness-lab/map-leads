@@ -1,6 +1,6 @@
 # MapLeads - Operational Summary
 
-> **Version:** 1.1.2
+> **Version:** 1.1.3
 > **Last updated:** 2026-02-18
 > **Source of truth:** `docs/context.md`
 
@@ -14,8 +14,8 @@
 
 - `/` Landing page
 - `/auth` Authentication
-- `/dashboard` Searches and leads workspace
-- `/superadmin` Restricted user-management panel
+- `/dashboard` Searches and leads workspace (non-superadmin users)
+- `/superadmin` Restricted user-management panel (superadmin only)
 
 ## Landing Section Order
 
@@ -30,11 +30,13 @@
 ## Auth And Security
 
 - Providers: Email/Password and Google OAuth (Firebase Auth).
+- Post-login routing: superadmin email goes to `/superadmin`; others to `/dashboard`.
 - Frontend ensures starter docs exist for new users:
   - `profiles/{uid}`
   - `subscriptions/{uid}`
 - Firestore rules enforce owner-scoped access and restricted writes.
 - Superadmin is allowlisted by `SUPERADMIN_EMAIL`.
+- `runApifySearch` blocks superadmin requester accounts.
 
 ## Environment Variables
 

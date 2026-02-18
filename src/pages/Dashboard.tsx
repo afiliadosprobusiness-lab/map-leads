@@ -147,6 +147,10 @@ export default function Dashboard() {
       navigate("/auth");
       return;
     }
+    if (isSuperAdminEmail(user.email)) {
+      navigate("/superadmin", { replace: true });
+      return;
+    }
 
     setLoadingSearches(true);
 

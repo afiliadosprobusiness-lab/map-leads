@@ -19,6 +19,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLang } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
+import { getPostAuthRoute } from "@/lib/superadmin";
 
 const STARTER_LEADS_LIMIT = 2000;
 
@@ -38,7 +39,9 @@ export default function AuthPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (user) navigate("/dashboard");
+    if (user) {
+      navigate(getPostAuthRoute(user.email), { replace: true });
+    }
   }, [user, navigate]);
 
   const ensureUserDocuments = async (firebaseUser: User, overrides?: { email?: string; fullName?: string }) => {
@@ -107,8 +110,8 @@ export default function AuthPage() {
     setLoading(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      navigate("/dashboard");
+      const credentials = await signInWithEmailAndPassword(auth, email, password);
+      navigate(getPostAuthRoute(credentials.user.email), { replace: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to sign in";
       toast({ title: t("auth.loginError"), description: message, variant: "destructive" });
@@ -130,7 +133,7 @@ export default function AuthPage() {
       await ensureUserDocuments(credentials.user, { email, fullName });
 
       toast({ title: t("auth.registerSuccess"), description: t("auth.registerSuccessDesc") });
-      navigate("/dashboard");
+      navigate(getPostAuthRoute(credentials.user.email), { replace: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to register";
       toast({ title: t("auth.registerError"), description: message, variant: "destructive" });
@@ -148,7 +151,7 @@ export default function AuthPage() {
     try {
       const credentials = await signInWithPopup(auth, provider);
       await ensureUserDocuments(credentials.user);
-      navigate("/dashboard");
+      navigate(getPostAuthRoute(credentials.user.email), { replace: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to continue with Google";
       toast({ title: t("auth.googleError"), description: message, variant: "destructive" });

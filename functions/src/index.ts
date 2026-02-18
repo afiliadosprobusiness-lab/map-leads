@@ -258,7 +258,12 @@ export const runApifySearch = onCall<RunSearchInput>(
   async (request) => {
     const authData = ensureAuthenticatedUser(request);
     const userId = authData.uid;
+    const requesterEmail = (authData.token.email as string | undefined)?.toLowerCase() ?? "";
     const searchId = request.data.search_id;
+
+    if (requesterEmail === SUPERADMIN_EMAIL) {
+      throw new HttpsError("permission-denied", "Superadmin cannot run searches");
+    }
 
     if (!searchId || typeof searchId !== "string") {
       throw new HttpsError("invalid-argument", "search_id required");

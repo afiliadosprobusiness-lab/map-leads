@@ -1,5 +1,5 @@
 ﻿import { describe, expect, it } from "vitest";
-import { getSuperAdminEmail, isSuperAdminEmail } from "@/lib/superadmin";
+import { getPostAuthRoute, getSuperAdminEmail, isSuperAdminEmail } from "@/lib/superadmin";
 
 describe("superadmin helpers", () => {
   it("uses default superadmin email when no env value exists", () => {
@@ -14,5 +14,10 @@ describe("superadmin helpers", () => {
     expect(isSuperAdminEmail("Owner@Site.com", "owner@site.com")).toBe(true);
     expect(isSuperAdminEmail("user@site.com", "owner@site.com")).toBe(false);
     expect(isSuperAdminEmail(null, "owner@site.com")).toBe(false);
+  });
+
+  it("returns superadmin route for allowlisted email", () => {
+    expect(getPostAuthRoute("afiliadosprobusiness@gmail.com")).toBe("/superadmin");
+    expect(getPostAuthRoute("user@site.com")).toBe("/dashboard");
   });
 });
