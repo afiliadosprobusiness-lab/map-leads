@@ -1,6 +1,6 @@
 ﻿# MapLeads - Product Context
 
-> **Version:** 1.1.3
+> **Version:** 1.1.4
 > **Last updated:** 2026-02-18
 > **Status:** MVP
 
@@ -121,6 +121,7 @@ Plan limits:
 2. Frontend calls `superadminUsers` with `list_users`.
 3. Superadmin can execute plan updates, suspend/restore, or hard delete.
 4. Superadmin cannot run scraping jobs (`runApifySearch` denies superadmin requester).
+5. Superadmin UI does not show a dashboard shortcut and surfaces a clear service-unavailable message if callable backend is not reachable.
 
 ---
 

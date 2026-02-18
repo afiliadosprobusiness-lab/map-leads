@@ -200,6 +200,7 @@ async function deleteByUserId(collectionName, userId) {
 exports.runApifySearch = (0, https_1.onCall)({
     timeoutSeconds: 540,
     memory: "1GiB",
+    cors: true,
 }, async (request) => {
     const authData = ensureAuthenticatedUser(request);
     const userId = authData.uid;
@@ -317,6 +318,7 @@ exports.runApifySearch = (0, https_1.onCall)({
 exports.superadminUsers = (0, https_1.onCall)({
     timeoutSeconds: 300,
     memory: "512MiB",
+    cors: true,
 }, async (request) => {
     const requester = ensureSuperadmin(request);
     const action = request.data.action;

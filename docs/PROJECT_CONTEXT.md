@@ -1,6 +1,6 @@
 # MapLeads - Operational Summary
 
-> **Version:** 1.1.3
+> **Version:** 1.1.4
 > **Last updated:** 2026-02-18
 > **Source of truth:** `docs/context.md`
 
@@ -37,6 +37,7 @@
 - Firestore rules enforce owner-scoped access and restricted writes.
 - Superadmin is allowlisted by `SUPERADMIN_EMAIL`.
 - `runApifySearch` blocks superadmin requester accounts.
+- Superadmin panel has no dashboard shortcut and shows a clear unavailable-service message when callable backend is unreachable.
 
 ## Environment Variables
 

@@ -1,6 +1,6 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, RefreshCcw, ShieldAlert, Trash2 } from "lucide-react";
+import { Loader2, RefreshCcw, ShieldAlert, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLang } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
-import { getSuperAdminEmail, isSuperAdminEmail } from "@/lib/superadmin";
+import { isSuperAdminEmail } from "@/lib/superadmin";
 import { invokeSuperadminUsers } from "@/lib/firebaseApi";
 import { PlanType } from "@/types/app";
 
@@ -26,6 +26,24 @@ interface ManagedUser {
   created_at: string;
 }
 
+function mapSuperadminError(error: unknown, fallbackMessage: string, serviceUnavailableMessage: string): string {
+  if (!(error instanceof Error)) return fallbackMessage;
+
+  const message = error.message.toLowerCase();
+  const likelyServiceIssue =
+    message.includes("cors") ||
+    message.includes("404") ||
+    message.includes("failed to fetch") ||
+    message.includes("network") ||
+    message.includes("internal");
+
+  if (likelyServiceIssue) {
+    return serviceUnavailableMessage;
+  }
+
+  return error.message;
+}
+
 export default function SuperAdminPage() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
@@ -38,7 +56,6 @@ export default function SuperAdminPage() {
   const [busyAction, setBusyAction] = useState("");
   const [planDraft, setPlanDraft] = useState<Record<string, PlanType>>({});
 
-  const allowedEmail = getSuperAdminEmail();
   const isAuthorized = useMemo(() => isSuperAdminEmail(user?.email), [user?.email]);
 
   const fetchUsers = useCallback(
@@ -68,7 +85,7 @@ export default function SuperAdminPage() {
         setUsers(rows);
         setPlanDraft(nextPlanDraft);
       } catch (error) {
-        const message = error instanceof Error ? error.message : t("admin.actionError");
+        const message = mapSuperadminError(error, t("admin.actionError"), t("admin.serviceUnavailable"));
         toast({ title: t("admin.actionError"), description: message, variant: "destructive" });
         setUsers([]);
       }
@@ -114,7 +131,7 @@ export default function SuperAdminPage() {
       toast({ title: t("admin.actionSuccess") });
       await fetchUsers(search);
     } catch (error) {
-      const message = error instanceof Error ? error.message : t("admin.actionError");
+      const message = mapSuperadminError(error, t("admin.actionError"), t("admin.serviceUnavailable"));
       toast({ title: t("admin.actionError"), description: message, variant: "destructive" });
     }
 
@@ -143,19 +160,11 @@ export default function SuperAdminPage() {
 
           <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
             <LanguageSwitch />
-            <Button variant="outline" onClick={() => navigate("/dashboard")} className="flex-1 sm:flex-none">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              {t("admin.back")}
-            </Button>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-        <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
-          {t("admin.accessRule")}: {allowedEmail}
-        </div>
-
         <div className="flex flex-col sm:flex-row gap-2 mb-5">
           <Input
             value={search}
@@ -237,7 +246,7 @@ export default function SuperAdminPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          disabled={busyAction.length > 0 || managedUser.email.toLowerCase() === allowedEmail}
+                          disabled={busyAction.length > 0 || isSuperAdminEmail(managedUser.email)}
                           onClick={() => runAction(suspendAction, managedUser)}
                         >
                           {busyAction === `${suspendAction}:${managedUser.id}` ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
@@ -247,7 +256,7 @@ export default function SuperAdminPage() {
                         <Button
                           size="sm"
                           variant="destructive"
-                          disabled={busyAction.length > 0 || managedUser.email.toLowerCase() === allowedEmail}
+                          disabled={busyAction.length > 0 || isSuperAdminEmail(managedUser.email)}
                           onClick={() => runAction("delete_user", managedUser)}
                         >
                           {busyAction === `delete_user:${managedUser.id}` ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Trash2 className="h-3.5 w-3.5 mr-1" />}
