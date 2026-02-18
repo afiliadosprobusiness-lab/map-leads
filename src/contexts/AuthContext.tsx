@@ -1,20 +1,11 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { User, Session } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
-
-interface Profile {
-  id: string;
-  email: string;
-  full_name: string | null;
-  plan: "starter" | "growth" | "pro";
-  leads_used: number;
-  leads_limit: number;
-  stripe_customer_id: string | null;
-}
+﻿import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
+import { onAuthStateChanged, signOut as firebaseSignOut, User } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
+import { Profile } from "@/types/app";
 
 interface AuthContextType {
   user: User | null;
-  session: Session | null;
   profile: Profile | null;
   loading: boolean;
   signOut: () => Promise<void>;
@@ -25,56 +16,56 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (userId: string) => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single();
-    if (data) setProfile(data as Profile);
-  };
+  const fetchProfile = useCallback(async (userId: string) => {
+    const snapshot = await getDoc(doc(db, "profiles", userId));
+    if (!snapshot.exists()) {
+      setProfile(null);
+      return;
+    }
 
-  const refreshProfile = async () => {
-    if (user) await fetchProfile(user.id);
-  };
+    const data = snapshot.data() as Partial<Profile>;
+    setProfile({
+      id: snapshot.id,
+      email: data.email ?? "",
+      full_name: data.full_name ?? null,
+      plan: (data.plan as Profile["plan"]) ?? "starter",
+      leads_used: data.leads_used ?? 0,
+      leads_limit: data.leads_limit ?? 2000,
+      stripe_customer_id: data.stripe_customer_id ?? null,
+      is_suspended: data.is_suspended ?? false,
+      suspended_at: data.suspended_at ?? null,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+    });
+  }, []);
+
+  const refreshProfile = useCallback(async () => {
+    if (!user) return;
+    await fetchProfile(user.uid);
+  }, [user, fetchProfile]);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          setTimeout(() => fetchProfile(session.user.id), 0);
-        } else {
-          setProfile(null);
-        }
-        setLoading(false);
+    const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
+      setUser(nextUser);
+      if (nextUser) {
+        await fetchProfile(nextUser.uid);
+      } else {
+        setProfile(null);
       }
-    );
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) fetchProfile(session.user.id);
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => unsubscribe();
+  }, [fetchProfile]);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await firebaseSignOut(auth);
   };
 
-  return (
-    <AuthContext.Provider value={{ user, session, profile, loading, signOut, refreshProfile }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={{ user, profile, loading, signOut, refreshProfile }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

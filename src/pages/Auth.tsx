@@ -1,12 +1,16 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MapPin, Eye, EyeOff, ArrowLeft } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { createUserWithEmailAndPassword, sendEmailVerification, signInWithEmailAndPassword, updateProfile as updateAuthProfile } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLang } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
+import { LanguageSwitch } from "@/components/LanguageSwitch";
 
 export default function AuthPage() {
   const [searchParams] = useSearchParams();
@@ -17,8 +21,10 @@ export default function AuthPage() {
   const [fullName, setFullName] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
+
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useLang();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -28,58 +34,93 @@ export default function AuthPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
+
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      toast({ title: "Error al iniciar sesión", description: error.message, variant: "destructive" });
-    } else {
+
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
       navigate("/dashboard");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to sign in";
+      toast({ title: t("auth.loginError"), description: message, variant: "destructive" });
     }
+
     setLoading(false);
   };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password || !fullName) return;
+
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: fullName },
-        emailRedirectTo: window.location.origin,
-      },
-    });
-    if (error) {
-      toast({ title: "Error al registrarse", description: error.message, variant: "destructive" });
-    } else {
-      toast({
-        title: "¡Cuenta creada!",
-        description: "Revisa tu email para confirmar tu cuenta.",
-      });
+
+    try {
+      const credentials = await createUserWithEmailAndPassword(auth, email, password);
+      await updateAuthProfile(credentials.user, { displayName: fullName });
+      await sendEmailVerification(credentials.user);
+
+      const now = new Date().toISOString();
+
+      await setDoc(
+        doc(db, "profiles", credentials.user.uid),
+        {
+          id: credentials.user.uid,
+          email,
+          full_name: fullName,
+          plan: "starter",
+          leads_used: 0,
+          leads_limit: 2000,
+          stripe_customer_id: null,
+          is_suspended: false,
+          suspended_at: null,
+          created_at: now,
+          updated_at: now,
+        },
+        { merge: true },
+      );
+
+      await setDoc(
+        doc(db, "subscriptions", credentials.user.uid),
+        {
+          user_id: credentials.user.uid,
+          plan: "starter",
+          status: "active",
+          created_at: now,
+          updated_at: now,
+        },
+        { merge: true },
+      );
+
+      toast({ title: t("auth.registerSuccess"), description: t("auth.registerSuccessDesc") });
+      navigate("/dashboard");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to register";
+      toast({ title: t("auth.registerError"), description: message, variant: "destructive" });
     }
+
     setLoading(false);
   };
 
   return (
-    <div className="min-h-screen gradient-hero flex items-center justify-center px-4 relative overflow-hidden">
-      {/* Background grid */}
+    <div className="min-h-screen gradient-hero flex items-center justify-center px-4 py-8 relative overflow-hidden">
       <div className="absolute inset-0 grid-glow opacity-20" />
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full blur-3xl pointer-events-none" style={{ background: "hsl(var(--brand-blue) / 0.08)" }} />
 
+      <div className="absolute top-4 right-4 z-20">
+        <LanguageSwitch />
+      </div>
+
       <div className="relative z-10 w-full max-w-md">
-        {/* Back */}
         <button
+          type="button"
           onClick={() => navigate("/")}
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-8"
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
         >
           <ArrowLeft className="w-4 h-4" />
-          Volver al inicio
+          {t("auth.back")}
         </button>
 
-        {/* Card */}
-        <div className="gradient-card glow-border rounded-2xl p-8">
-          {/* Logo */}
+        <div className="gradient-card glow-border rounded-2xl p-6 sm:p-8">
           <div className="flex items-center gap-2 mb-8">
             <div className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center shadow-glow-sm">
               <MapPin className="w-4 h-4 text-primary-foreground" />
@@ -89,19 +130,17 @@ export default function AuthPage() {
             </span>
           </div>
 
-          {/* Tabs */}
           <div className="flex rounded-xl bg-muted p-1 mb-8">
-            {(["login", "register"] as const).map((t) => (
+            {(["login", "register"] as const).map((tabItem) => (
               <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                  tab === t
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
+                key={tabItem}
+                type="button"
+                onClick={() => setTab(tabItem)}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  tab === tabItem ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {t === "login" ? "Iniciar sesión" : "Crear cuenta"}
+                {tabItem === "login" ? t("auth.login") : t("auth.register")}
               </button>
             ))}
           </div>
@@ -109,24 +148,29 @@ export default function AuthPage() {
           {tab === "login" ? (
             <form onSubmit={handleLogin} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm text-foreground">Email</Label>
+                <Label htmlFor="email" className="text-sm text-foreground">
+                  {t("auth.email")}
+                </Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="tu@email.com"
+                  placeholder={t("auth.emailPlaceholder")}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   className="bg-muted border-border/50 focus:border-primary"
                 />
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm text-foreground">Contraseña</Label>
+                <Label htmlFor="password" className="text-sm text-foreground">
+                  {t("auth.password")}
+                </Label>
                 <div className="relative">
                   <Input
                     id="password"
                     type={showPw ? "text" : "password"}
-                    placeholder="••••••••"
+                    placeholder="********"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -134,54 +178,63 @@ export default function AuthPage() {
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPw(!showPw)}
+                    onClick={() => setShowPw((prev) => !prev)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
                     {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
+
               <Button
                 type="submit"
                 className="w-full h-11 gradient-primary text-primary-foreground border-0 shadow-glow-sm hover:opacity-90 font-semibold"
                 disabled={loading}
               >
-                {loading ? "Iniciando sesión..." : "Iniciar sesión"}
+                {loading ? t("auth.loginLoading") : t("auth.loginBtn")}
               </Button>
             </form>
           ) : (
             <form onSubmit={handleRegister} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="name" className="text-sm text-foreground">Nombre completo</Label>
+                <Label htmlFor="name" className="text-sm text-foreground">
+                  {t("auth.name")}
+                </Label>
                 <Input
                   id="name"
                   type="text"
-                  placeholder="Tu nombre"
+                  placeholder={t("auth.namePlaceholder")}
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   required
                   className="bg-muted border-border/50 focus:border-primary"
                 />
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="email-reg" className="text-sm text-foreground">Email</Label>
+                <Label htmlFor="email-reg" className="text-sm text-foreground">
+                  {t("auth.email")}
+                </Label>
                 <Input
                   id="email-reg"
                   type="email"
-                  placeholder="tu@email.com"
+                  placeholder={t("auth.emailPlaceholder")}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   className="bg-muted border-border/50 focus:border-primary"
                 />
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="password-reg" className="text-sm text-foreground">Contraseña</Label>
+                <Label htmlFor="password-reg" className="text-sm text-foreground">
+                  {t("auth.password")}
+                </Label>
                 <div className="relative">
                   <Input
                     id="password-reg"
                     type={showPw ? "text" : "password"}
-                    placeholder="Mínimo 6 caracteres"
+                    placeholder={t("auth.passwordPlaceholder")}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -190,25 +243,24 @@ export default function AuthPage() {
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPw(!showPw)}
+                    onClick={() => setShowPw((prev) => !prev)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
                     {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
+
               <Button
                 type="submit"
                 className="w-full h-11 gradient-primary text-primary-foreground border-0 shadow-glow-sm hover:opacity-90 font-semibold"
                 disabled={loading}
               >
-                {loading ? "Creando cuenta..." : "Crear cuenta gratis"}
+                {loading ? t("auth.registerLoading") : t("auth.registerBtn")}
               </Button>
+
               <p className="text-xs text-muted-foreground text-center">
-                Al registrarte aceptas nuestros{" "}
-                <a href="/terms" className="text-primary hover:underline">Términos de servicio</a>
-                {" "}y{" "}
-                <a href="/privacy" className="text-primary hover:underline">Política de privacidad</a>.
+                {t("auth.terms1")} <a href="/terms" className="text-primary hover:underline">{t("auth.termsLink")}</a> {t("auth.terms2")} <a href="/privacy" className="text-primary hover:underline">{t("auth.privacyLink")}</a>.
               </p>
             </form>
           )}

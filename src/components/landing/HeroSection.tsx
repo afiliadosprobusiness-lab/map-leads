@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+﻿import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, MapPin, Building2, Phone, Globe } from "lucide-react";
@@ -10,9 +10,9 @@ const statKeys = ["hero.stat1", "hero.stat2", "hero.stat3"] as const;
 const cardDelays = ["0s", "0.2s", "0.4s", "0.6s"];
 
 const floatingLeads = [
-  { name: "Restaurante La Barca", city: "Barcelona", category: "Restaurant", phone: "+34 93 123 4567" },
+  { name: "La Barca Bistro", city: "Barcelona", category: "Restaurant", phone: "+34 93 123 4567" },
   { name: "TechHub Madrid", city: "Madrid", category: "Technology", phone: "+34 91 987 6543" },
-  { name: "Café Montmartre", city: "Paris", category: "Café", phone: "+33 1 23 45 67 89" },
+  { name: "Montmartre Cafe", city: "Paris", category: "Cafe", phone: "+33 1 23 45 67 89" },
 ];
 
 export function HeroSection() {
@@ -42,9 +42,7 @@ export function HeroSection() {
               {t("hero.headline3")}
             </h1>
 
-            <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mb-10 leading-relaxed">
-              {t("hero.subheadline")}
-            </p>
+            <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mb-10 leading-relaxed">{t("hero.subheadline")}</p>
 
             <div className="flex flex-wrap justify-center lg:justify-start gap-8 mb-10">
               {statValues.map((val, i) => (
@@ -101,7 +99,7 @@ export function HeroSection() {
                       </span>
                     </div>
                   </div>
-                  <span className="text-xs text-success font-medium">✓ {t("hero.lead")}</span>
+                  <span className="text-xs text-success font-medium">{`? ${t("hero.lead")}`}</span>
                 </div>
               ))}
 
@@ -115,7 +113,7 @@ export function HeroSection() {
                   </div>
                   <div>
                     <div className="text-sm font-semibold text-foreground">{t("hero.cardCompleted")}</div>
-                    <div className="text-xs text-muted-foreground">Restaurantes · Barcelona · España</div>
+                    <div className="text-xs text-muted-foreground">{t("hero.sampleSearch")}</div>
                   </div>
                 </div>
                 <div className="text-right">
@@ -130,3 +128,4 @@ export function HeroSection() {
     </section>
   );
 }
+

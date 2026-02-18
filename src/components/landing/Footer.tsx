@@ -21,6 +21,7 @@ export function Footer() {
           <nav className="flex flex-wrap gap-6 text-sm text-muted-foreground">
             <a href="#how-it-works" className="hover:text-foreground transition-colors">{t("nav.howItWorks")}</a>
             <a href="#pricing" className="hover:text-foreground transition-colors">{t("nav.pricing")}</a>
+            <a href="#testimonials" className="hover:text-foreground transition-colors">{t("nav.testimonials")}</a>
             <a href="#faq" className="hover:text-foreground transition-colors">{t("nav.faq")}</a>
             <Link to="/privacy" className="hover:text-foreground transition-colors">{t("footer.privacy")}</Link>
             <Link to="/terms" className="hover:text-foreground transition-colors">{t("footer.terms")}</Link>

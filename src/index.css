@@ -1,8 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
 @layer base {
   :root {
@@ -168,6 +168,19 @@
 @keyframes pulseGlow {
   0%, 100% { box-shadow: 0 0 20px hsl(211 100% 55% / 0.2); }
   50% { box-shadow: 0 0 40px hsl(211 100% 55% / 0.4); }
+}
+
+@keyframes testimonialScroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-testimonial-scroll {
+  animation: testimonialScroll 48s linear infinite;
 }
 
 /* Custom scrollbar */
