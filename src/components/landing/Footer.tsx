@@ -1,7 +1,10 @@
 import { Link } from "react-router-dom";
 import { MapPin } from "lucide-react";
+import { useLang } from "@/contexts/LanguageContext";
 
 export function Footer() {
+  const { t } = useLang();
+
   return (
     <footer className="border-t border-border/30 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -16,16 +19,14 @@ export function Footer() {
           </Link>
 
           <nav className="flex flex-wrap gap-6 text-sm text-muted-foreground">
-            <a href="#how-it-works" className="hover:text-foreground transition-colors">Cómo funciona</a>
-            <a href="#pricing" className="hover:text-foreground transition-colors">Precios</a>
-            <a href="#faq" className="hover:text-foreground transition-colors">FAQ</a>
-            <Link to="/privacy" className="hover:text-foreground transition-colors">Privacidad</Link>
-            <Link to="/terms" className="hover:text-foreground transition-colors">Términos</Link>
+            <a href="#how-it-works" className="hover:text-foreground transition-colors">{t("nav.howItWorks")}</a>
+            <a href="#pricing" className="hover:text-foreground transition-colors">{t("nav.pricing")}</a>
+            <a href="#faq" className="hover:text-foreground transition-colors">{t("nav.faq")}</a>
+            <Link to="/privacy" className="hover:text-foreground transition-colors">{t("footer.privacy")}</Link>
+            <Link to="/terms" className="hover:text-foreground transition-colors">{t("footer.terms")}</Link>
           </nav>
 
-          <p className="text-sm text-muted-foreground">
-            © 2025 MapLeads · Todos los derechos reservados
-          </p>
+          <p className="text-sm text-muted-foreground">{t("footer.rights")}</p>
         </div>
       </div>
     </footer>
