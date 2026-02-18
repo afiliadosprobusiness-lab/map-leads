@@ -1,6 +1,6 @@
 # MapLeads - Operational Summary
 
-> **Version:** 1.1.4
+> **Version:** 2.0.0
 > **Last updated:** 2026-02-18
 > **Source of truth:** `docs/context.md`
 
@@ -8,7 +8,7 @@
 
 - B2B SaaS to extract structured local business leads from Google Maps.
 - Frontend: React + Vite + TypeScript + Tailwind + shadcn/ui.
-- Backend: Firebase Auth, Firestore, Cloud Functions (`runApifySearch`, `superadminUsers`).
+- Backend: Cloud Run API (`map-leads-backend`) + Firebase Auth + Firestore.
 
 ## Main Routes
 
@@ -36,8 +36,8 @@
   - `subscriptions/{uid}`
 - Firestore rules enforce owner-scoped access and restricted writes.
 - Superadmin is allowlisted by `SUPERADMIN_EMAIL`.
-- `runApifySearch` blocks superadmin requester accounts.
-- Superadmin panel has no dashboard shortcut and shows a clear unavailable-service message when callable backend is unreachable.
+- Superadmin requester cannot run scraping jobs.
+- Superadmin panel has no dashboard shortcut and shows a clear unavailable-service message when backend is unreachable.
 
 ## Environment Variables
 
@@ -48,12 +48,12 @@ Frontend:
 - `VITE_FIREBASE_STORAGE_BUCKET`
 - `VITE_FIREBASE_MESSAGING_SENDER_ID`
 - `VITE_FIREBASE_APP_ID`
-- `VITE_FIREBASE_FUNCTIONS_REGION`
+- `VITE_BACKEND_API_URL` (required)
 - `VITE_SUPERADMIN_EMAIL` (optional)
 - `VITE_PAYPAL_STARTER_URL` (optional)
 - `VITE_PAYPAL_GROWTH_URL` (optional)
 - `VITE_PAYPAL_PRO_URL` (optional)
 
-Cloud Functions runtime:
+Backend runtime (`map-leads-backend`):
 - `SUPERADMIN_EMAIL` (optional)
 - `APIFY_TOKEN` (optional)

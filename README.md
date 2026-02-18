@@ -1,13 +1,13 @@
-﻿# MapLeads
+# MapLeads
 
-MapLeads is a Firebase-based lead generation platform built with React + Vite.
+MapLeads is a lead generation platform built with React + Vite, Firebase Auth/Firestore, and a Cloud Run backend API.
 
 ## Stack
 
 - React + TypeScript + Tailwind + shadcn/ui
 - Firebase Auth
 - Cloud Firestore
-- Firebase Cloud Functions (v2 callable)
+- Cloud Run backend API (`map-leads-backend`)
 - Apify for Google Maps extraction
 
 ## Local Setup
@@ -26,30 +26,17 @@ npm install
 npm run dev
 ```
 
-## Firebase Functions Setup
+## Backend API Setup
 
-1. Install function deps:
-
-```bash
-cd functions
-npm install
-```
-
-2. Build functions:
+Set frontend environment variable:
 
 ```bash
-npm run build
+VITE_BACKEND_API_URL=https://your-cloud-run-url.a.run.app
 ```
 
-3. Set runtime env vars (Firebase Functions):
-- `APIFY_TOKEN` (optional, demo mode if missing)
-- `SUPERADMIN_EMAIL` (optional, default `afiliadosprobusiness@gmail.com`)
+If `VITE_BACKEND_API_URL` is missing in local development, frontend falls back to `http://localhost:8080`.
 
-4. Deploy:
-
-```bash
-firebase deploy --only functions,firestore:rules,firestore:indexes
-```
+Deploy backend from `map-leads-backend` with Cloud Run.
 
 ## Important Notes
 

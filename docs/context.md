@@ -1,6 +1,6 @@
-﻿# MapLeads - Product Context
+# MapLeads - Product Context
 
-> **Version:** 1.1.4
+> **Version:** 2.0.0
 > **Last updated:** 2026-02-18
 > **Status:** MVP
 
@@ -31,14 +31,12 @@ Core flow:
 - React 18 + Vite + TypeScript
 - Tailwind CSS + shadcn/ui
 - React Router v6
-- Firebase Web SDK (Auth, Firestore, Functions)
+- Firebase Web SDK (Auth, Firestore)
 
 ### Backend
-- Firebase Authentication
+- Cloud Run service: `map-leads-backend` (Express + TypeScript)
+- Firebase Authentication (ID token verification)
 - Cloud Firestore
-- Firebase Cloud Functions v2 (callable)
-  - `runApifySearch`
-  - `superadminUsers`
 - Apify actor: `compass~crawler-google-places`
 
 ### Billing
@@ -78,19 +76,20 @@ Plan limits:
 ### Access Control
 - Firestore rules enforce owner-scoped reads and controlled writes.
 - Client cannot mutate lead results or privileged plan/suspension fields.
-- Superadmin operations are only available through callable backend.
+- Superadmin operations are only available through Cloud Run backend API.
 
 ### Superadmin
 - Allowlist by email: `afiliadosprobusiness@gmail.com` (or runtime override via `SUPERADMIN_EMAIL`).
 - Capabilities: list users, change plan, suspend/restore, delete user and related data.
 - On login, superadmin is redirected to `/superadmin` and blocked from `/dashboard`.
+- Superadmin requester cannot execute scraping jobs.
 
 ### Suspension
 - `profiles.is_suspended` and `profiles.suspended_at` define account state.
 - Suspended users are blocked from running new scraping jobs.
 
 ### Secrets
-- `APIFY_TOKEN` and `SUPERADMIN_EMAIL` are runtime secrets in Cloud Functions.
+- Backend runtime secrets: `APIFY_TOKEN`, `SUPERADMIN_EMAIL`.
 - No private key or admin credentials are committed.
 
 ---
@@ -110,18 +109,17 @@ Plan limits:
 
 ### Lead Search Flow
 1. User creates `searches` document with `queued` state.
-2. Frontend calls callable `runApifySearch`.
-3. Function validates auth, ownership, suspension, and quota.
-4. Function runs Apify (or demo mode if token missing).
-5. Function writes leads and updates profile usage.
+2. Frontend calls `POST /api/run-apify-search` with Firebase ID token.
+3. Backend validates auth, ownership, suspension, superadmin restriction, and quota.
+4. Backend runs Apify (or demo mode if token missing).
+5. Backend writes leads and updates profile usage.
 6. Dashboard updates in realtime via Firestore snapshot listeners.
 
 ### Superadmin Flow
 1. Authorized user enters `/superadmin`.
-2. Frontend calls `superadminUsers` with `list_users`.
+2. Frontend calls `POST /api/superadmin-users` with Firebase ID token.
 3. Superadmin can execute plan updates, suspend/restore, or hard delete.
-4. Superadmin cannot run scraping jobs (`runApifySearch` denies superadmin requester).
-5. Superadmin UI does not show a dashboard shortcut and surfaces a clear service-unavailable message if callable backend is not reachable.
+4. Superadmin UI does not show a dashboard shortcut and surfaces a clear service-unavailable message if backend is unreachable.
 
 ---
 
@@ -134,13 +132,13 @@ Plan limits:
 - `VITE_FIREBASE_STORAGE_BUCKET`
 - `VITE_FIREBASE_MESSAGING_SENDER_ID`
 - `VITE_FIREBASE_APP_ID`
-- `VITE_FIREBASE_FUNCTIONS_REGION`
+- `VITE_BACKEND_API_URL` (required)
 - `VITE_SUPERADMIN_EMAIL` (optional frontend guard override)
 - `VITE_PAYPAL_STARTER_URL` (optional)
 - `VITE_PAYPAL_GROWTH_URL` (optional)
 - `VITE_PAYPAL_PRO_URL` (optional)
 
-### Cloud Functions runtime
+### Backend runtime (`map-leads-backend`)
 - `SUPERADMIN_EMAIL` (optional; default allowlist email)
 - `APIFY_TOKEN` (optional; without it app runs in demo mode)
 
@@ -148,7 +146,8 @@ Plan limits:
 
 ## 9. Current Assumptions
 
-1. Apify actor remains available and stable.
-2. Firestore indexes from `firestore.indexes.json` are deployed.
-3. Billing remains frontend-driven through PayPal links.
-4. Team workspaces and enterprise access control are out of scope.
+1. Cloud Run backend is deployed and reachable from frontend origin.
+2. Apify actor remains available and stable.
+3. Firestore indexes from `firestore.indexes.json` are deployed.
+4. Billing remains frontend-driven through PayPal links.
+5. Team workspaces and enterprise access control are out of scope.

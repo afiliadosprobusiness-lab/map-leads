@@ -222,7 +222,7 @@ const translations: Record<Lang, Record<string, string>> = {
     "admin.accessRule": "Superadmin allowlist email",
     "admin.actionSuccess": "Action completed",
     "admin.actionError": "Action failed",
-    "admin.serviceUnavailable": "Superadmin service is unavailable. Deploy Firebase Functions and retry.",
+    "admin.serviceUnavailable": "Superadmin service is unavailable. Verify Cloud Run backend and retry.",
 
     "notFound.message": "Page not found",
     "notFound.back": "Return to home",
@@ -438,7 +438,7 @@ const translations: Record<Lang, Record<string, string>> = {
     "admin.accessRule": "Email en allowlist superadmin",
     "admin.actionSuccess": "Accion completada",
     "admin.actionError": "La accion fallo",
-    "admin.serviceUnavailable": "El servicio superadmin no esta disponible. Despliega Firebase Functions e intenta de nuevo.",
+    "admin.serviceUnavailable": "El servicio superadmin no esta disponible. Verifica el backend de Cloud Run e intenta de nuevo.",
 
     "notFound.message": "Pagina no encontrada",
     "notFound.back": "Volver al inicio",

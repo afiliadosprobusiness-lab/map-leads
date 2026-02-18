@@ -1,6 +1,6 @@
-﻿# MapLeads - API and Data Contract
+# MapLeads - API and Data Contract
 
-> **Version:** 1.1.1
+> **Version:** 2.0.0
 > **Status:** MVP - Source of mechanical truth
 > **Last updated:** 2026-02-18
 
@@ -8,17 +8,27 @@
 
 ## Contract Rules
 
-1. This document is the source of mechanical truth for frontend, Firebase Functions, and Firestore.
+1. This document is the source of mechanical truth for frontend, Cloud Run backend API, and Firestore.
 2. Breaking changes require explicit version bump.
 3. Added fields must be backward compatible whenever possible.
 
 ---
 
-## 1. Firebase Callable Functions
+## 1. Cloud Run Backend API
 
-All functions are callable via Firebase SDK and require authenticated user context.
+All protected endpoints require Firebase ID token:
 
-### 1.1 `runApifySearch`
+`Authorization: Bearer <firebase_id_token>`
+
+Error format:
+
+```json
+{
+  "error": "message"
+}
+```
+
+### 1.1 `POST /api/run-apify-search`
 
 Triggers one scraping job for an existing search.
 
@@ -40,16 +50,16 @@ Triggers one scraping job for an existing search.
 }
 ```
 
-#### Error Codes (`HttpsError.code`)
+#### HTTP Errors
 
-| Code | Condition |
+| Status | Condition |
 |---|---|
-| `invalid-argument` | Missing/invalid `search_id` |
-| `unauthenticated` | Missing auth context |
-| `not-found` | Search does not exist or does not belong to caller |
-| `permission-denied` | Suspended account or superadmin requester |
-| `resource-exhausted` | Leads quota exceeded |
-| `internal` | Apify/Firestore/unexpected error |
+| `400` | Missing/invalid `search_id` |
+| `401` | Missing/invalid auth token |
+| `403` | Suspended account or superadmin requester |
+| `404` | Search does not exist or does not belong to caller |
+| `429` | Leads quota exceeded |
+| `500` | Apify/Firestore/unexpected error |
 
 #### Side Effects
 
@@ -60,9 +70,9 @@ Triggers one scraping job for an existing search.
 
 ---
 
-### 1.2 `superadminUsers`
+### 1.2 `POST /api/superadmin-users`
 
-Restricted superadmin user management callable.
+Restricted superadmin user management endpoint.
 
 #### Authorization
 
@@ -112,14 +122,14 @@ Restricted superadmin user management callable.
 }
 ```
 
-#### Error Codes (`HttpsError.code`)
+#### HTTP Errors
 
-| Code | Condition |
+| Status | Condition |
 |---|---|
-| `invalid-argument` | Invalid action/args |
-| `unauthenticated` | Missing auth context |
-| `permission-denied` | Non-superadmin caller |
-| `internal` | Firebase Auth / Firestore errors |
+| `400` | Invalid action/args |
+| `401` | Missing/invalid auth token |
+| `403` | Non-superadmin caller |
+| `500` | Firebase Auth / Firestore errors |
 
 ---
 
@@ -216,18 +226,26 @@ addDoc(collection(db, "searches"), {
 ### 3.2 Trigger Scraping
 
 ```ts
-httpsCallable(functions, "runApifySearch")({ search_id })
+fetch(`${VITE_BACKEND_API_URL}/api/run-apify-search`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${idToken}`,
+  },
+  body: JSON.stringify({ search_id }),
+})
 ```
 
 ### 3.3 Superadmin Operations
 
 ```ts
-httpsCallable(functions, "superadminUsers")({
-  action,
-  user_id,
-  plan,
-  query,
-  limit,
+fetch(`${VITE_BACKEND_API_URL}/api/superadmin-users`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${idToken}`,
+  },
+  body: JSON.stringify({ action, user_id, plan, query, limit }),
 })
 ```
 
@@ -249,21 +267,25 @@ Filename:
 - `searches`: owner read, owner create queued searches, no client update/delete
 - `leads`: owner read only
 - `subscriptions`: owner read only
-- Superadmin mutations run server-side in callable functions
+- Superadmin mutations run server-side in Cloud Run backend API
 
 ---
 
 ## Changelog del Contrato
 
 - 2026-02-18
-  - Cambio: Migration from Supabase contract to Firebase Auth + Firestore + Callable Functions.
+  - Cambio: Migration from Supabase contract to Firebase Auth + Firestore + callable backend.
   - Tipo: breaking
-  - Impacto: Backend provider switched; all direct Supabase calls replaced by Firebase SDK calls.
+  - Impacto: Backend provider switched; all direct Supabase calls replaced by Firebase stack.
 - 2026-02-18
-  - Cambio: Added callable `superadminUsers` and suspended-account guard in `runApifySearch`.
-  - Tipo: non-breaking (within Firebase contract)
+  - Cambio: Added superadmin management endpoint and suspended-account guard.
+  - Tipo: non-breaking
   - Impacto: Enables secure superadmin operations and account suspension enforcement.
 - 2026-02-18
-  - Cambio: `runApifySearch` now blocks superadmin requester accounts.
+  - Cambio: Search execution blocks superadmin requester accounts.
   - Tipo: non-breaking
-  - Impacto: Superadmin role is restricted to user management operations.
+  - Impacto: Superadmin role restricted to user management operations.
+- 2026-02-18
+  - Cambio: Frontend transport migrated from Firebase callable functions to Cloud Run HTTP API.
+  - Tipo: breaking
+  - Impacto: Frontend now requires `VITE_BACKEND_API_URL` and Bearer-authenticated HTTP calls.
