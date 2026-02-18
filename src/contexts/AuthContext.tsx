@@ -1,4 +1,4 @@
-﻿import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
 import { onAuthStateChanged, signOut as firebaseSignOut, User } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -20,26 +20,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async (userId: string) => {
-    const snapshot = await getDoc(doc(db, "profiles", userId));
-    if (!snapshot.exists()) {
-      setProfile(null);
-      return;
-    }
+    try {
+      const snapshot = await getDoc(doc(db, "profiles", userId));
+      if (!snapshot.exists()) {
+        setProfile(null);
+        return;
+      }
 
-    const data = snapshot.data() as Partial<Profile>;
-    setProfile({
-      id: snapshot.id,
-      email: data.email ?? "",
-      full_name: data.full_name ?? null,
-      plan: (data.plan as Profile["plan"]) ?? "starter",
-      leads_used: data.leads_used ?? 0,
-      leads_limit: data.leads_limit ?? 2000,
-      stripe_customer_id: data.stripe_customer_id ?? null,
-      is_suspended: data.is_suspended ?? false,
-      suspended_at: data.suspended_at ?? null,
-      created_at: data.created_at,
-      updated_at: data.updated_at,
-    });
+      const data = snapshot.data() as Partial<Profile>;
+      setProfile({
+        id: snapshot.id,
+        email: data.email ?? "",
+        full_name: data.full_name ?? null,
+        plan: (data.plan as Profile["plan"]) ?? "starter",
+        leads_used: data.leads_used ?? 0,
+        leads_limit: data.leads_limit ?? 2000,
+        stripe_customer_id: data.stripe_customer_id ?? null,
+        is_suspended: data.is_suspended ?? false,
+        suspended_at: data.suspended_at ?? null,
+        created_at: data.created_at,
+        updated_at: data.updated_at,
+      });
+    } catch {
+      setProfile(null);
+    }
   }, []);
 
   const refreshProfile = useCallback(async () => {
@@ -49,13 +53,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
-      setUser(nextUser);
-      if (nextUser) {
-        await fetchProfile(nextUser.uid);
-      } else {
-        setProfile(null);
+      try {
+        setUser(nextUser);
+        if (nextUser) {
+          await fetchProfile(nextUser.uid);
+        } else {
+          setProfile(null);
+        }
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();
