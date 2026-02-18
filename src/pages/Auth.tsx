@@ -1,16 +1,26 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MapPin, Eye, EyeOff, ArrowLeft } from "lucide-react";
-import { createUserWithEmailAndPassword, sendEmailVerification, signInWithEmailAndPassword, updateProfile as updateAuthProfile } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import {
+  createUserWithEmailAndPassword,
+  GoogleAuthProvider,
+  sendEmailVerification,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  updateProfile as updateAuthProfile,
+  type User,
+} from "firebase/auth";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLang } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
+
+const STARTER_LEADS_LIMIT = 2000;
 
 export default function AuthPage() {
   const [searchParams] = useSearchParams();
@@ -31,6 +41,65 @@ export default function AuthPage() {
     if (user) navigate("/dashboard");
   }, [user, navigate]);
 
+  const ensureUserDocuments = async (firebaseUser: User, overrides?: { email?: string; fullName?: string }) => {
+    const now = new Date().toISOString();
+    const normalizedEmail = overrides?.email ?? firebaseUser.email ?? "";
+    const normalizedName = overrides?.fullName ?? firebaseUser.displayName ?? null;
+    const profileRef = doc(db, "profiles", firebaseUser.uid);
+    const profileSnapshot = await getDoc(profileRef);
+
+    if (!profileSnapshot.exists()) {
+      await setDoc(
+        profileRef,
+        {
+          id: firebaseUser.uid,
+          email: normalizedEmail,
+          full_name: normalizedName,
+          plan: "starter",
+          leads_used: 0,
+          leads_limit: STARTER_LEADS_LIMIT,
+          stripe_customer_id: null,
+          is_suspended: false,
+          suspended_at: null,
+          created_at: now,
+          updated_at: now,
+        },
+        { merge: true },
+      );
+    } else {
+      const currentProfile = profileSnapshot.data();
+      const profilePatch: Record<string, unknown> = { updated_at: now };
+
+      if (!currentProfile.email && normalizedEmail) {
+        profilePatch.email = normalizedEmail;
+      }
+      if (!currentProfile.full_name && normalizedName) {
+        profilePatch.full_name = normalizedName;
+      }
+
+      if (Object.keys(profilePatch).length > 1) {
+        await setDoc(profileRef, profilePatch, { merge: true });
+      }
+    }
+
+    const subscriptionRef = doc(db, "subscriptions", firebaseUser.uid);
+    const subscriptionSnapshot = await getDoc(subscriptionRef);
+
+    if (!subscriptionSnapshot.exists()) {
+      await setDoc(
+        subscriptionRef,
+        {
+          user_id: firebaseUser.uid,
+          plan: "starter",
+          status: "active",
+          created_at: now,
+          updated_at: now,
+        },
+        { merge: true },
+      );
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
@@ -43,9 +112,9 @@ export default function AuthPage() {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to sign in";
       toast({ title: t("auth.loginError"), description: message, variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -58,47 +127,34 @@ export default function AuthPage() {
       const credentials = await createUserWithEmailAndPassword(auth, email, password);
       await updateAuthProfile(credentials.user, { displayName: fullName });
       await sendEmailVerification(credentials.user);
-
-      const now = new Date().toISOString();
-
-      await setDoc(
-        doc(db, "profiles", credentials.user.uid),
-        {
-          id: credentials.user.uid,
-          email,
-          full_name: fullName,
-          plan: "starter",
-          leads_used: 0,
-          leads_limit: 2000,
-          stripe_customer_id: null,
-          is_suspended: false,
-          suspended_at: null,
-          created_at: now,
-          updated_at: now,
-        },
-        { merge: true },
-      );
-
-      await setDoc(
-        doc(db, "subscriptions", credentials.user.uid),
-        {
-          user_id: credentials.user.uid,
-          plan: "starter",
-          status: "active",
-          created_at: now,
-          updated_at: now,
-        },
-        { merge: true },
-      );
+      await ensureUserDocuments(credentials.user, { email, fullName });
 
       toast({ title: t("auth.registerSuccess"), description: t("auth.registerSuccessDesc") });
       navigate("/dashboard");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to register";
       toast({ title: t("auth.registerError"), description: message, variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
+  };
 
-    setLoading(false);
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+
+    try {
+      const credentials = await signInWithPopup(auth, provider);
+      await ensureUserDocuments(credentials.user);
+      navigate("/dashboard");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to continue with Google";
+      toast({ title: t("auth.googleError"), description: message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -145,6 +201,28 @@ export default function AuthPage() {
             ))}
           </div>
 
+          <div className="space-y-4 mb-6">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleGoogleLogin}
+              disabled={loading}
+              className="w-full h-11 border-border/60 bg-card hover:bg-muted/70"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" className="mr-2 h-4 w-4">
+                <path fill="#EA4335" d="M12 10.2v3.95h5.49c-.24 1.27-.96 2.35-2.04 3.08l3.3 2.56c1.92-1.77 3.03-4.38 3.03-7.49 0-.73-.07-1.44-.2-2.12H12Z" />
+                <path fill="#34A853" d="M6.54 14.28 5.8 14.84l-2.62 2.04A9.98 9.98 0 0 0 12 22c2.7 0 4.96-.9 6.61-2.43l-3.3-2.56c-.9.61-2.05.97-3.31.97-2.6 0-4.8-1.76-5.58-4.13Z" />
+                <path fill="#4A90E2" d="M3.18 7.12A9.98 9.98 0 0 0 2 12c0 1.75.42 3.4 1.18 4.88 0 .01 3.36-2.61 3.36-2.61A5.98 5.98 0 0 1 6 12c0-.8.19-1.57.54-2.27L3.18 7.12Z" />
+                <path fill="#FBBC05" d="M12 5.98c1.47 0 2.78.5 3.82 1.49l2.86-2.86C16.96 2.98 14.7 2 12 2a9.98 9.98 0 0 0-8.82 5.12l3.36 2.61c.78-2.37 2.98-4.13 5.46-4.13Z" />
+              </svg>
+              {loading ? t("auth.googleLoading") : t("auth.continueWithGoogle")}
+            </Button>
+            <div className="relative flex items-center">
+              <span className="w-full border-t border-border/60" />
+              <span className="absolute left-1/2 -translate-x-1/2 bg-card px-2 text-xs text-muted-foreground">{t("auth.orEmail")}</span>
+            </div>
+          </div>
+
           {tab === "login" ? (
             <form onSubmit={handleLogin} className="space-y-5">
               <div className="space-y-2">
@@ -179,7 +257,7 @@ export default function AuthPage() {
                   <button
                     type="button"
                     onClick={() => setShowPw((prev) => !prev)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -244,7 +322,7 @@ export default function AuthPage() {
                   <button
                     type="button"
                     onClick={() => setShowPw((prev) => !prev)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>

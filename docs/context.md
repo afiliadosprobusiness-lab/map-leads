@@ -1,6 +1,6 @@
 ﻿# MapLeads - Product Context
 
-> **Version:** 1.1.0
+> **Version:** 1.1.2
 > **Last updated:** 2026-02-18
 > **Status:** MVP
 
@@ -73,6 +73,7 @@ Plan limits:
 
 ### Auth
 - All dashboard and superadmin flows require Firebase authenticated user.
+- Supported providers: Email/Password and Google OAuth (Firebase Auth).
 
 ### Access Control
 - Firestore rules enforce owner-scoped reads and controlled writes.
@@ -94,6 +95,16 @@ Plan limits:
 ---
 
 ## 7. Main Flows
+
+### Landing Flow
+1. Hero section with core value proposition.
+2. Testimonials section directly below hero for early social proof.
+3. Problem, How it works, Pricing, FAQ, and CTA sections.
+
+### Authentication Flow
+1. User signs in with Email/Password or Google from `/auth`.
+2. Frontend ensures `profiles/{uid}` and `subscriptions/{uid}` exist with starter defaults for new users.
+3. Existing users keep current plan/quota state; missing identity fields are backfilled when needed.
 
 ### Lead Search Flow
 1. User creates `searches` document with `queued` state.
